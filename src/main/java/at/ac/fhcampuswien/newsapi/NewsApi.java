@@ -10,6 +10,7 @@ import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLConnection;
 
 
 public class NewsApi {
@@ -114,15 +115,14 @@ public class NewsApi {
         this.endpoint = endpoint;
     }
 
-    protected String requestData() {
+    protected String requestData() throws NewsApiException {
         String url = buildURL();
-        System.out.println("URL: " + url);
+        System.out.println("URL: "+url);
         URL obj = null;
         try {
             obj = new URL(url);
         } catch (MalformedURLException e) {
-            // TODO improve ErrorHandling
-            e.printStackTrace();
+            throw new NewsApiException("Error: URL not correct");
         }
         HttpURLConnection con;
         StringBuilder response = new StringBuilder();
@@ -135,18 +135,21 @@ public class NewsApi {
             }
             in.close();
         } catch (IOException e) {
-            // TODO improve ErrorHandling
-            System.out.println("Error "+e.getMessage());
+            throw new NewsApiException(e.getMessage());
         }
         return response.toString();
     }
 
-    protected String buildURL() {
-        // TODO ErrorHandling
-        String urlbase = String.format(NEWS_API_URL,getEndpoint().getValue(),getQ(),getApiKey());
-        StringBuilder sb = new StringBuilder(urlbase);
+    protected String buildURL() throws NewsApiException {
+        String urlbase;
 
-        System.out.println(urlbase);
+        if(getEndpoint().getValue() == null || getQ() == null || getApiKey() == null){
+            throw new NewsApiException("Error: Null value in URL ");
+        }else{
+            urlbase = String.format(NEWS_API_URL,getEndpoint().getValue(),getQ(),getApiKey());
+        }
+
+        StringBuilder sb = new StringBuilder(urlbase);
 
         if(getFrom() != null){
             sb.append(DELIMITER).append("from=").append(getFrom());
@@ -184,7 +187,43 @@ public class NewsApi {
         return sb.toString();
     }
 
-    public NewsResponse getNews() {
+    public void saveArticlesLocallyInHtml(String path) throws NewsApiException {
+        String url = buildURL();
+        URL obj = null;
+
+        try {
+            obj = new URL(url);
+        } catch (MalformedURLException e) {
+            throw new NewsApiException("The URL is malformed. Please check the URL you use.");
+        }
+
+        try {
+            URLConnection conn = obj.openConnection();
+            BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+            String inputLine;
+            String fileName = path;
+            File file = new File(fileName);
+            //if no such file exists, create this file
+            if (!file.exists()) {
+                file.createNewFile();
+            }
+            FileWriter fw = new FileWriter(file.getAbsoluteFile());
+            BufferedWriter bw = new BufferedWriter(fw);
+            while ((inputLine = br.readLine()) != null) {
+                bw.write(inputLine);
+            }
+            bw.close();;
+            br.close();
+            System.out.println("Your file is saved in " + fileName + " location.");
+
+
+        } catch (IOException ioException) {
+            throw new NewsApiException("Impossible to write to the file. Please check the path and filename.");
+        }
+
+    }
+
+    public NewsResponse getNews() throws NewsApiException {
         NewsResponse newsReponse = null;
         String jsonResponse = requestData();
         if(jsonResponse != null && !jsonResponse.isEmpty()){
@@ -193,13 +232,14 @@ public class NewsApi {
             try {
                 newsReponse = objectMapper.readValue(jsonResponse, NewsResponse.class);
                 if(!"ok".equals(newsReponse.getStatus())){
-                    System.out.println("Error: "+newsReponse.getStatus());
+                    throw new NewsApiException(newsReponse.getStatus());
                 }
             } catch (JsonProcessingException e) {
-                System.out.println("Error: "+e.getMessage());
+                throw new NewsApiException("Json Error has occurred.");
             }
+        }else if (jsonResponse != null){
+            throw new NewsApiException("Json Error has occurred.");
         }
-        //TODO improve Errorhandling
         return newsReponse;
     }
 }

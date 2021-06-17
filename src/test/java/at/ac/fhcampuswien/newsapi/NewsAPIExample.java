@@ -10,9 +10,9 @@ import java.util.List;
 
 public class NewsAPIExample {
 
-    public static final String APIKEY = "myKey";    //TODO add your api key
+    public static final String APIKEY = "2a5f8954097d4d1b9ea4f6b2a98481cc";
 
-    public static void main(String[] args){
+    public static void main(String[] args) throws NewsApiException {
 
         NewsApi newsApi = new NewsApiBuilder()
                 .setApiKey(APIKEY)
